@@ -11,4 +11,5 @@ add_executable(server
     src/main.cpp
     src/server.cpp
     src/http_parser.cpp
+    src/file_handler.cpp
 )
