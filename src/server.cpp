@@ -3,8 +3,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <cstring>
-#include "http_parser.h"
-#include "file_handler.h"
+#include "thread_pool.h"
 
 Server::Server(int port)
     : port(port) {}
@@ -59,9 +58,9 @@ void Server::start()
         << port
         << "\n";
 
+    ThreadPool pool(4);
     while (true)
     {
-
         int clientSocket =
             accept(
                 serverSocket,
@@ -77,109 +76,8 @@ void Server::start()
             continue;
         }
 
-        char buffer[4096] = {0};
+        pool.enqueue(clientSocket);
 
-        recv(
-            clientSocket,
-            buffer,
-            sizeof(buffer),
-            0);
-
-        std::string request(buffer);
-
-        HttpRequest httpRequest =
-            HttpParser::parse(request);
-
-        std::cout
-            << "Method: "
-            << httpRequest.method
-            << "\n";
-
-        std::cout
-            << "Path: "
-            << httpRequest.path
-            << "\n";
-
-        std::string body;
-
-        std::string status;
-
-        std::string filePath;
-
-        if (httpRequest.path == "/")
-        {
-
-            filePath = "../static/index.html";
-        }
-
-        else if (httpRequest.path == "/about")
-        {
-
-            filePath = "../static/about.html";
-        }
-
-        else
-        {
-
-            filePath = "";
-        }
-
-        if (!filePath.empty())
-        {
-
-            body =
-                FileHandler::readFile(
-                    filePath);
-
-            if (body.empty())
-            {
-
-                status = "404 Not Found";
-
-                body =
-                    "<html><body>"
-                    "<h1>404 File Not Found</h1>"
-                    "</body></html>";
-            }
-
-            else
-            {
-
-                status = "200 OK";
-            }
-        }
-
-        else
-        {
-
-            status = "404 Not Found";
-
-            body =
-                "<html><body>"
-                "<h1>404 Route Not Found</h1>"
-                "</body></html>";
-        }
-
-        std::string response =
-
-            "HTTP/1.1 " + status + "\r\n"
-
-                                   "Content-Type: text/html\r\n"
-
-                                   "Content-Length: " +
-            std::to_string(body.size())
-
-            + "\r\n\r\n"
-
-            + body;
-
-        send(
-            clientSocket,
-            response.c_str(),
-            response.size(),
-            0);
-
-        close(clientSocket);
     }
 
     close(serverSocket);
