@@ -13,4 +13,5 @@ add_executable(server
     src/http_parser.cpp
     src/file_handler.cpp
     src/thread_pool.cpp
+    src/logger.cpp
 )

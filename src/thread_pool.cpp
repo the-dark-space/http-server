@@ -4,18 +4,18 @@
 #include "http_parser.h"
 #include "file_handler.h"
 #include <sys/socket.h>
-
+#include "logger.h"
 ThreadPool::ThreadPool(
     int threadCount) : stop(false)
 {
 
-    for (int i = 0;
-         i < threadCount;
-         i++)
-    {
+        for (int i = 0;
+             i < threadCount;
+             i++)
+        {
 
-        workers.emplace_back([this]()
-                             {
+                workers.emplace_back([this]()
+                                     {
 
             while(true) {
 
@@ -51,157 +51,165 @@ ThreadPool::ThreadPool(
 
                 processRequest(clientSocket);
             } });
-    }
+        }
 }
 
 void ThreadPool::enqueue(
-        int clientSocket
-) {
+    int clientSocket)
+{
 
-    {
-        std::lock_guard<
-                std::mutex
-        > lock(queueMutex);
+        {
+                std::lock_guard<
+                    std::mutex>
+                    lock(queueMutex);
 
-        tasks.push(clientSocket);
-    }
+                tasks.push(clientSocket);
+        }
 
-    condition.notify_one();
+        condition.notify_one();
 }
 
-int ThreadPool::dequeue() {
+int ThreadPool::dequeue()
+{
 
-    std::unique_lock<
-            std::mutex
-    > lock(queueMutex);
+        std::unique_lock<
+            std::mutex>
+            lock(queueMutex);
 
-    condition.wait(
+        condition.wait(
             lock,
 
-            [this]() {
+            [this]()
+            {
+                    return !tasks.empty();
+            });
 
-                return !tasks.empty();
-            }
-    );
-
-    int task =
+        int task =
             tasks.front();
 
-    tasks.pop();
+        tasks.pop();
 
-    return task;
+        return task;
 }
 
-ThreadPool::~ThreadPool() {
+ThreadPool::~ThreadPool()
+{
 
-    {
-        std::lock_guard<
-                std::mutex
-        > lock(queueMutex);
+        {
+                std::lock_guard<
+                    std::mutex>
+                    lock(queueMutex);
 
-        stop = true;
-    }
+                stop = true;
+        }
 
-    condition.notify_all();
+        condition.notify_all();
 
-    for(auto& worker : workers) {
+        for (auto &worker : workers)
+        {
 
-        worker.join();
-    }
+                worker.join();
+        }
 }
 
 void ThreadPool::processRequest(
-        int clientSocket
-) {
+    int clientSocket)
+{
 
-    char buffer[4096] = {0};
+        char buffer[4096] = {0};
 
-    recv(
+        recv(
             clientSocket,
             buffer,
             sizeof(buffer),
-            0
-    );
+            0);
 
-    std::string request(buffer);
+        std::string request(buffer);
 
-    HttpRequest httpRequest =
+        HttpRequest httpRequest =
             HttpParser::parse(request);
 
-    std::cout
-            << "Worker "
-            << std::this_thread::get_id()
-            << " processing "
-            << httpRequest.path
-            << "\n";
+        Logger::log(
 
-    std::string filePath;
+            "INFO",
 
-    if(httpRequest.path == "/") {
+            "Worker " + std::to_string(std::hash<std::thread::id>{}(std::this_thread::get_id()))
 
-        filePath =
-                "../static/index.html";
-    }
+                + " processing "
 
-    else if(
-            httpRequest.path
-            == "/about"
-    ) {
+                + httpRequest.path);
 
-        filePath =
-                "../static/about.html";
-    }
+        std::string filePath;
 
-    else {
+        if (httpRequest.path == "/")
+        {
 
-        filePath = "";
-    }
+                filePath =
+                    "../static/index.html";
+        }
 
-    std::string body;
+        else if (
+            httpRequest.path == "/about")
+        {
 
-    std::string status;
+                filePath =
+                    "../static/about.html";
+        }
 
-    if(!filePath.empty()) {
+        else
+        {
 
-        body =
-                FileHandler::readFile(
-                        filePath
-                );
+                filePath = "";
+        }
 
-        if(body.empty()) {
+        std::string body;
 
-            status =
-                    "404 Not Found";
+        std::string status;
 
-            body =
+        if (!filePath.empty())
+        {
+
+                body =
+                    FileHandler::readFile(
+                        filePath);
+
+                if (body.empty())
+                {
+
+                        status =
+                            "404 Not Found";
+
+                        body =
+                            "<html><body>"
+                            "<h1>404 File Not Found</h1>"
+                            "</body></html>";
+                }
+
+                else
+                {
+
+                        status = "200 OK";
+                }
+        }
+
+        else
+        {
+
+                status = "404 Not Found";
+
+                body =
                     "<html><body>"
-                    "<h1>404 File Not Found</h1>"
+                    "<h1>404 Route Not Found</h1>"
                     "</body></html>";
         }
 
-        else {
-
-            status = "200 OK";
-        }
-    }
-
-    else {
-
-        status = "404 Not Found";
-
-        body =
-                "<html><body>"
-                "<h1>404 Route Not Found</h1>"
-                "</body></html>";
-    }
-
-    std::string response =
+        std::string response =
 
             "HTTP/1.1 " + status + "\r\n"
 
-            "Content-Type: text/html\r\n"
+                                   "Content-Type: text/html\r\n"
 
-            "Content-Length: "
+                                   "Content-Length: "
 
             + std::to_string(body.size())
 
@@ -209,12 +217,11 @@ void ThreadPool::processRequest(
 
             + body;
 
-    send(
+        send(
             clientSocket,
             response.c_str(),
             response.size(),
-            0
-    );
+            0);
 
-    close(clientSocket);
+        close(clientSocket);
 }
