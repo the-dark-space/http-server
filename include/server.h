@@ -4,11 +4,16 @@ class Server {
 
 public:
 
-    Server(int port);
+    Server(
+        int port,
+
+        int threadCount
+);
 
     void start();
 
 private:
 
     int port;
+    int threadCount;
 };

@@ -14,4 +14,5 @@ add_executable(server
     src/file_handler.cpp
     src/thread_pool.cpp
     src/logger.cpp
+    src/config_manager.cpp
 )

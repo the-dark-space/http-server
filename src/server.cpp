@@ -5,8 +5,15 @@
 #include <cstring>
 #include "thread_pool.h"
 
-Server::Server(int port)
-    : port(port) {}
+Server::Server(
+        int port,
+
+        int threadCount
+)
+
+        : port(port),
+
+          threadCount(threadCount) {}
 
 void Server::start()
 {
@@ -58,7 +65,7 @@ void Server::start()
         << port
         << "\n";
 
-    ThreadPool pool(4);
+    ThreadPool pool(threadCount);
     while (true)
     {
         int clientSocket =
