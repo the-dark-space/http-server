@@ -12,12 +12,12 @@ Server::Server(
 )
 
         : port(port),
-
-          threadCount(threadCount) {}
+        threadCount(threadCount),
+        running(true) {}
 
 void Server::start()
 {
-    int serverSocket =
+    serverSocket =
         socket(
             AF_INET,
             SOCK_STREAM,
@@ -66,7 +66,7 @@ void Server::start()
         << "\n";
 
     ThreadPool pool(threadCount);
-    while (true)
+    while (running)
     {
         int clientSocket =
             accept(
@@ -77,6 +77,11 @@ void Server::start()
         if (clientSocket < 0)
         {
 
+            if (!running)
+            {
+                break;
+            }
+
             std::cerr
                 << "Accept failed\n";
 
@@ -86,6 +91,12 @@ void Server::start()
         pool.enqueue(clientSocket);
 
     }
+
+    close(serverSocket);
+}
+void Server::stop() {
+
+    running = false;
 
     close(serverSocket);
 }

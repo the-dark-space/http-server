@@ -1,5 +1,5 @@
 #pragma once
-
+#include <atomic>
 class Server {
 
 public:
@@ -11,9 +11,12 @@ public:
 );
 
     void start();
+    void stop();
 
 private:
 
     int port;
     int threadCount;
+    int serverSocket;
+    std::atomic<bool> running;
 };
