@@ -165,13 +165,14 @@ void ThreadPool::processRequest(
 
         return;
     }
-    
-    if(httpRequest.path == "/metrics") {
 
-    std::string body =
+    if (httpRequest.path == "/metrics")
+    {
+
+        std::string body =
             MetricsManager::getMetrics();
 
-    std::string response =
+        std::string response =
 
             "HTTP/1.1 200 OK\r\n"
 
@@ -185,17 +186,16 @@ void ThreadPool::processRequest(
 
             + body;
 
-    send(
+        send(
             clientSocket,
             response.c_str(),
             response.size(),
-            0
-    );
+            0);
 
-    close(clientSocket);
+        close(clientSocket);
 
-    return;
-}
+        return;
+    }
 
     std::string filePath;
 
@@ -213,6 +213,7 @@ void ThreadPool::processRequest(
     }
 
     std::string body;
+    std::vector<char> binaryBody;
     std::string status;
 
     std::string contentType =
@@ -221,18 +222,38 @@ void ThreadPool::processRequest(
     if (!filePath.empty())
     {
 
-        body =
-            FileHandler::readFile(
-                filePath);
+        if (
+            MimeType::isBinaryFile(
+                filePath))
+        {
+
+            binaryBody =
+                FileHandler::readBinaryFile(
+                    filePath);
+        }
+        else
+        {
+
+            body =
+                FileHandler::readFile(
+                    filePath);
+        }
         contentType = MimeType::getMimeType(filePath);
 
-        if (body.empty())
+        bool fileMissing =
+
+            body.empty()
+
+            &&
+
+            binaryBody.empty();
+
+        if (fileMissing)
         {
 
             status =
                 "404 Not Found";
-            MetricsManager
-        ::incrementNotFoundRequests();
+            MetricsManager ::incrementNotFoundRequests();
             body =
                 "<html><body>"
                 "<h1>404 File Not Found</h1>"
@@ -243,8 +264,7 @@ void ThreadPool::processRequest(
         {
 
             status = "200 OK";
-            MetricsManager
-        ::incrementSuccessfulRequests();
+            MetricsManager ::incrementSuccessfulRequests();
         }
     }
 
@@ -252,8 +272,7 @@ void ThreadPool::processRequest(
     {
 
         status = "404 Not Found";
-        MetricsManager
-        ::incrementNotFoundRequests();
+        MetricsManager ::incrementNotFoundRequests();
 
         body =
             "<html><body>"
@@ -270,7 +289,17 @@ void ThreadPool::processRequest(
 
                       "Content-Length: "
 
-        + std::to_string(body.size())
+        + std::to_string(
+
+              !binaryBody.empty()
+
+                  ?
+
+                  binaryBody.size()
+
+                  :
+
+                  body.size())
 
         + "\r\n\r\n"
 
@@ -280,11 +309,54 @@ void ThreadPool::processRequest(
         "INFO",
         httpRequest.method + " " + httpRequest.path + " " + status);
 
+    std::string header =
+
+        "HTTP/1.1 "
+
+        + status
+
+        + "\r\n"
+
+        + "Content-Type: "
+
+        + contentType
+
+        + "\r\n"
+
+        + "Content-Length: "
+
+        + std::to_string(
+              !binaryBody.empty()
+                  ? binaryBody.size()
+                  : body.size())
+
+        + "\r\n\r\n";
+
     send(
         clientSocket,
-        response.c_str(),
-        response.size(),
+        header.c_str(),
+        header.size(),
         0);
+
+    if (binaryBody.empty())
+    {
+
+        send(
+            clientSocket,
+            body.c_str(),
+            body.size(),
+            0);
+    }
+
+    else
+    {
+
+        send(
+            clientSocket,
+            binaryBody.data(),
+            binaryBody.size(),
+            0);
+    }
 
     close(clientSocket);
 }

@@ -49,3 +49,20 @@ std::string MimeType::getMimeType(
 
     return "text/plain";
 }
+
+bool MimeType::isBinaryFile(
+        const std::string& filePath
+) {
+
+    return
+
+        hasExtension(filePath, ".png")
+
+        ||
+
+        hasExtension(filePath, ".jpg")
+
+        ||
+
+        hasExtension(filePath, ".jpeg");
+}
