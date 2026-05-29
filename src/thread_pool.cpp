@@ -5,6 +5,9 @@
 #include "file_handler.h"
 #include <sys/socket.h>
 #include "logger.h"
+#include "mime_type.h"
+#include "path_validator.h"
+
 ThreadPool::ThreadPool(
     int threadCount) : stop(false)
 {
@@ -129,42 +132,59 @@ void ThreadPool::processRequest(
         HttpRequest httpRequest =
             HttpParser::parse(request);
 
-        Logger::log(
+        if(!PathValidator::isSafePath(
+        httpRequest.path
+)) {
 
-            "INFO",
+    Logger::log(
+            "WARN",
+            "Blocked path traversal attempt: "
+            + httpRequest.path
+    );
 
-            "Worker " + std::to_string(std::hash<std::thread::id>{}(std::this_thread::get_id()))
+    std::string response =
 
-                + " processing "
+            "HTTP/1.1 403 Forbidden\r\n"
 
-                + httpRequest.path);
+            "Content-Type: text/html\r\n"
+
+            "\r\n"
+
+            "<html><body>"
+            "<h1>403 Forbidden</h1>"
+            "</body></html>";
+
+    send(
+            clientSocket,
+            response.c_str(),
+            response.size(),
+            0
+    );
+
+    close(clientSocket);
+
+    return;
+}
 
         std::string filePath;
 
-        if (httpRequest.path == "/")
-        {
+if(httpRequest.path == "/") {
 
-                filePath =
-                    "../static/index.html";
-        }
+    filePath =
+            "../static/index.html";
+}
+else {
 
-        else if (
-            httpRequest.path == "/about")
-        {
-
-                filePath =
-                    "../static/about.html";
-        }
-
-        else
-        {
-
-                filePath = "";
-        }
+    filePath =
+            "../static"
+            + httpRequest.path;
+}
 
         std::string body;
-
         std::string status;
+
+        std::string contentType =
+        "text/html";
 
         if (!filePath.empty())
         {
@@ -172,6 +192,7 @@ void ThreadPool::processRequest(
                 body =
                     FileHandler::readFile(
                         filePath);
+                contentType = MimeType::getMimeType(filePath);
 
                 if (body.empty())
                 {
@@ -207,15 +228,20 @@ void ThreadPool::processRequest(
 
             "HTTP/1.1 " + status + "\r\n"
 
-                                   "Content-Type: text/html\r\n"
+                                   "Content-Type: " +
+            contentType + "\r\n"
 
-                                   "Content-Length: "
+                          "Content-Length: "
 
             + std::to_string(body.size())
 
             + "\r\n\r\n"
 
             + body;
+
+        Logger::log(
+            "INFO",
+            httpRequest.method + " " + httpRequest.path + " " + status);
 
         send(
             clientSocket,

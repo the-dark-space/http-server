@@ -15,4 +15,6 @@ add_executable(server
     src/thread_pool.cpp
     src/logger.cpp
     src/config_manager.cpp
+    src/mime_type.cpp
+    src/path_validator.cpp
 )
