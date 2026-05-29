@@ -17,4 +17,5 @@ add_executable(server
     src/config_manager.cpp
     src/mime_type.cpp
     src/path_validator.cpp
+    src/metrics_manager.cpp
 )
