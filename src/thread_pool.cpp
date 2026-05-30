@@ -104,6 +104,9 @@ void ThreadPool::processRequest(
     timeout.tv_sec = 5;
 
     timeout.tv_usec = 0;
+
+    bool shouldCloseConnection = false;
+
     setsockopt(
 
         clientSocket,
@@ -115,164 +118,216 @@ void ThreadPool::processRequest(
         &timeout,
 
         sizeof(timeout));
-    char buffer[4096] = {0};
 
-    int bytesReceived =
-        recv(
-            clientSocket,
-            buffer,
-            sizeof(buffer),
-            0);
-
-    if (bytesReceived == 0)
+    while (true)
     {
-        Logger::log(
-            "INFO",
-            "Client disconnected");
+        char buffer[4096] = {0};
 
-        close(clientSocket);
+        int bytesReceived =
+            recv(
+                clientSocket,
+                buffer,
+                sizeof(buffer),
+                0);
 
-        return;
-    }
-    if (bytesReceived < 0)
-    {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        if (bytesReceived == 0)
         {
             Logger::log(
                 "INFO",
-                "No data available yet");
+                "Client disconnected");
+
+            shouldCloseConnection = true;
+
+            goto cleanup;
         }
-        else
+        if (bytesReceived < 0)
         {
-            Logger::log(
-                "WARN",
-                "recv failed");
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+            {
+                Logger::log(
+                    "DEBUG",
+                    "Keep-Alive timeout");
+            }
+            else
+            {
+                Logger::log(
+                    "WARN",
+                    "recv failed");
+            }
+
+            shouldCloseConnection = true;
+            goto cleanup;
         }
 
-        close(clientSocket);
+        std::string request(
+            buffer,
+            bytesReceived);
 
-        return;
-    }
+        HttpRequest httpRequest =
+            HttpParser::parse(request);
 
-    std::string request(
-        buffer,
-        bytesReceived);
-
-    HttpRequest httpRequest =
-        HttpParser::parse(request);
-
-    std::string handledResponse =
-        RequestHandler::handleRequest(
-            httpRequest);
-
-    if (!handledResponse.empty())
-    {
-        ssize_t bytesSent = send(
-            clientSocket,
-            handledResponse.c_str(),
-            handledResponse.size(),
-            0);
-
-        if (bytesSent < 0)
+        if (httpRequest.method.empty())
         {
-            Logger::log(
-                "WARN",
-                "Failed to send response");
+            continue;
         }
-        close(clientSocket);
-
-        return;
-    }
-
-    if (httpRequest.method != "GET")
-    {
         Logger::log(
-            "WARN",
-            "Unsupported HTTP method: " + httpRequest.method);
+            "INFO",
+            httpRequest.method + " " + httpRequest.path + " " + httpRequest.version);
 
-        std::string response =
-            RequestHandler::getMethodNotAllowedResponse();
+        Logger::log(
+            "INFO",
+            httpRequest.keepAlive
+                ? "Keep-Alive requested"
+                : "No Keep-Alive");
 
+        std::string handledResponse =
+            RequestHandler::handleRequest(
+                httpRequest);
+
+        if (!handledResponse.empty())
+        {
+            ssize_t bytesSent = send(
+                clientSocket,
+                handledResponse.c_str(),
+                handledResponse.size(),
+                0);
+
+            if (bytesSent < 0)
+            {
+                Logger::log(
+                    "WARN",
+                    "Failed to send response");
+            }
+            if (!httpRequest.keepAlive)
+            {
+                shouldCloseConnection = true;
+            }
+
+            if (!httpRequest.keepAlive)
+            {
+                shouldCloseConnection = true;
+                goto cleanup;
+            }
+
+            continue;
+        }
+
+        if (httpRequest.method != "GET")
+        {
+            Logger::log(
+                "WARN",
+                "Unsupported HTTP method: " + httpRequest.method);
+
+            std::string response =
+                RequestHandler::getMethodNotAllowedResponse();
+
+            AccessLogger::logRequest(
+                httpRequest.method,
+                httpRequest.path,
+                "405 Method Not Allowed");
+
+            ssize_t bytesSent = send(
+                clientSocket,
+                response.c_str(),
+                response.size(),
+                0);
+
+            if (bytesSent < 0)
+            {
+                Logger::log(
+                    "WARN",
+                    "Failed to send response");
+            }
+            if (!httpRequest.keepAlive)
+            {
+                shouldCloseConnection = true;
+            }
+
+            if (!httpRequest.keepAlive)
+            {
+                shouldCloseConnection = true;
+                goto cleanup;
+            }
+
+            continue;
+        }
+
+        HttpResponse response =
+            StaticFileHandler::serveFile(
+                httpRequest.path);
         AccessLogger::logRequest(
             httpRequest.method,
             httpRequest.path,
-            "405 Method Not Allowed");
+            response.status);
+        std::string header =
+            ResponseBuilder::buildHeader(
+                response.status,
+                response.contentType,
+
+                response.isBinary
+                    ? response.binaryBody.size()
+                    : response.body.size());
 
         ssize_t bytesSent = send(
             clientSocket,
-            response.c_str(),
-            response.size(),
+            header.c_str(),
+            header.size(),
             0);
-
         if (bytesSent < 0)
         {
             Logger::log(
                 "WARN",
                 "Failed to send response");
         }
-        close(clientSocket);
 
-        return;
+        if (response.isBinary)
+        {
+            ssize_t bytesSent = send(
+                clientSocket,
+                response.binaryBody.data(),
+                response.binaryBody.size(),
+                0);
+            if (bytesSent < 0)
+            {
+                Logger::log(
+                    "WARN",
+                    "Failed to send response");
+            }
+        }
+        else
+        {
+            ssize_t bytesSent = send(
+                clientSocket,
+                response.body.c_str(),
+                response.body.size(),
+                0);
+            if (bytesSent < 0)
+            {
+                Logger::log(
+                    "WARN",
+                    "Failed to send response");
+            }
+        }
+
+        if (!httpRequest.keepAlive)
+        {
+            Logger::log(
+                "INFO",
+                "Client requested connection close");
+
+            shouldCloseConnection = true;
+
+            break;
+        }
     }
+cleanup:
 
-    HttpResponse response =
-        StaticFileHandler::serveFile(
-            httpRequest.path);
-    AccessLogger::logRequest(
-        httpRequest.method,
-        httpRequest.path,
-        response.status);
-    std::string header =
-        ResponseBuilder::buildHeader(
-            response.status,
-            response.contentType,
-
-            response.isBinary
-                ? response.binaryBody.size()
-                : response.body.size());
-
-    ssize_t bytesSent = send(
-        clientSocket,
-        header.c_str(),
-        header.size(),
-        0);
-    if (bytesSent < 0)
+    if (shouldCloseConnection)
     {
         Logger::log(
-            "WARN",
-            "Failed to send response");
-    }
+            "INFO",
+            "Closing socket");
 
-    if (response.isBinary)
-    {
-        ssize_t bytesSent = send(
-            clientSocket,
-            response.binaryBody.data(),
-            response.binaryBody.size(),
-            0);
-        if (bytesSent < 0)
-        {
-            Logger::log(
-                "WARN",
-                "Failed to send response");
-        }
+        close(clientSocket);
     }
-    else
-    {
-        ssize_t bytesSent = send(
-            clientSocket,
-            response.body.c_str(),
-            response.body.size(),
-            0);
-        if (bytesSent < 0)
-        {
-            Logger::log(
-                "WARN",
-                "Failed to send response");
-        }
-    }
-
-    close(clientSocket);
-
-    return;
 }

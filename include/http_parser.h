@@ -1,5 +1,5 @@
 #pragma once
-
+#include <unordered_map>
 #include <string>
 
 struct HttpRequest
@@ -10,6 +10,13 @@ struct HttpRequest
     std::string path;
 
     std::string version;
+
+    bool keepAlive = false;
+
+    std::unordered_map<
+        std::string,
+        std::string>
+        headers;
 };
 
 class HttpParser
