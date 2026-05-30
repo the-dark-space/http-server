@@ -10,6 +10,7 @@
 #include "request_handler.h"
 #include "http_response.h"
 #include "static_file_handler.h"
+#include "access_logger.h"
 
 ThreadPool::ThreadPool(
     int threadCount) : stop(false)
@@ -192,6 +193,11 @@ void ThreadPool::processRequest(
         std::string response =
             RequestHandler::getMethodNotAllowedResponse();
 
+        AccessLogger::logRequest(
+            httpRequest.method,
+            httpRequest.path,
+            "405 Method Not Allowed");
+
         ssize_t bytesSent = send(
             clientSocket,
             response.c_str(),
@@ -212,7 +218,10 @@ void ThreadPool::processRequest(
     HttpResponse response =
         StaticFileHandler::serveFile(
             httpRequest.path);
-
+    AccessLogger::logRequest(
+        httpRequest.method,
+        httpRequest.path,
+        response.status);
     std::string header =
         ResponseBuilder::buildHeader(
             response.status,
