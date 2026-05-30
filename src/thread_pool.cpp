@@ -8,6 +8,8 @@
 #include "mime_type.h"
 #include "path_validator.h"
 #include "metrics_manager.h"
+#include <sys/time.h>
+#include <cerrno>
 
 ThreadPool::ThreadPool(
     int threadCount) : stop(false)
@@ -119,20 +121,68 @@ ThreadPool::~ThreadPool()
 void ThreadPool::processRequest(
     int clientSocket)
 {
+    timeval timeout;
 
+    timeout.tv_sec = 5;
+
+    timeout.tv_usec = 0;
+    setsockopt(
+
+        clientSocket,
+
+        SOL_SOCKET,
+
+        SO_RCVTIMEO,
+
+        &timeout,
+
+        sizeof(timeout));
     char buffer[4096] = {0};
 
-    recv(
-        clientSocket,
-        buffer,
-        sizeof(buffer),
-        0);
+    int bytesReceived =
+        recv(
+            clientSocket,
+            buffer,
+            sizeof(buffer),
+            0);
 
-    std::string request(buffer);
+    if (bytesReceived == 0)
+    {
+        Logger::log(
+            "INFO",
+            "Client disconnected");
+
+        close(clientSocket);
+        return;
+    }
+
+    if (bytesReceived < 0)
+    {
+        Logger::log(
+            "WARN",
+            "Socket timeout or recv error");
+
+        close(clientSocket);
+        return;
+    }
+
+    std::string request(
+        buffer,
+        bytesReceived);
 
     HttpRequest httpRequest =
         HttpParser::parse(request);
 
+    if (httpRequest.method != "GET")
+    {
+        Logger::log(
+            "WARN",
+            "Unsupported HTTP method");
+
+        close(clientSocket);
+
+        return;
+    }
     MetricsManager::incrementTotalRequests();
 
     if (!PathValidator::isSafePath(

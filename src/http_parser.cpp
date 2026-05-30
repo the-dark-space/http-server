@@ -6,14 +6,17 @@ HttpRequest HttpParser::parse(
         const std::string& request
 ) {
 
-    std::stringstream stream(request);
-
     HttpRequest httpRequest;
 
-    stream
-            >> httpRequest.method
-            >> httpRequest.path
-            >> httpRequest.version;
+    std::stringstream stream(request);
+
+    if (!(stream
+          >> httpRequest.method
+          >> httpRequest.path
+          >> httpRequest.version))
+    {
+        return {};
+    }
 
     return httpRequest;
 }
