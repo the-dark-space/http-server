@@ -2,13 +2,12 @@
 
 #include <string>
 
-class ResponseBuilder {
+class ResponseBuilder
+{
 
 public:
-
     static std::string buildHeader(
-            const std::string& status,
-            const std::string& contentType,
-            size_t contentLength
-    );
+        const std::string &status,
+        const std::string &contentType,
+        size_t contentLength);
 };

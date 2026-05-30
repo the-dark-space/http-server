@@ -1,42 +1,40 @@
 #include "metrics_manager.h"
 
 std::atomic<long>
-MetricsManager::totalRequests(0);
+    MetricsManager::totalRequests(0);
 
 std::atomic<long>
-MetricsManager::successfulRequests(0);
+    MetricsManager::successfulRequests(0);
 
 std::atomic<long>
-MetricsManager::notFoundRequests(0);
+    MetricsManager::notFoundRequests(0);
 
-void MetricsManager::incrementTotalRequests() {
+void MetricsManager::incrementTotalRequests()
+{
 
     totalRequests++;
 }
 
-void MetricsManager::incrementSuccessfulRequests() {
+void MetricsManager::incrementSuccessfulRequests()
+{
 
     successfulRequests++;
 }
 
-void MetricsManager::incrementNotFoundRequests() {
+void MetricsManager::incrementNotFoundRequests()
+{
 
     notFoundRequests++;
 }
 
-std::string MetricsManager::getMetrics() {
+std::string MetricsManager::getMetrics()
+{
 
     return
 
-        "total_requests "
-        + std::to_string(totalRequests.load())
-        + "\n"
+        "total_requests " + std::to_string(totalRequests.load()) + "\n"
 
-        + "successful_requests "
-        + std::to_string(successfulRequests.load())
-        + "\n"
+        + "successful_requests " + std::to_string(successfulRequests.load()) + "\n"
 
-        + "not_found_requests "
-        + std::to_string(notFoundRequests.load())
-        + "\n";
+        + "not_found_requests " + std::to_string(notFoundRequests.load()) + "\n";
 }

@@ -3,10 +3,10 @@
 #include <atomic>
 #include <string>
 
-class MetricsManager {
+class MetricsManager
+{
 
 public:
-
     static void incrementTotalRequests();
 
     static void incrementSuccessfulRequests();
@@ -16,7 +16,6 @@ public:
     static std::string getMetrics();
 
 private:
-
     static std::atomic<long> totalRequests;
 
     static std::atomic<long> successfulRequests;

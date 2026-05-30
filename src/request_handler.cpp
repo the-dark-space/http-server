@@ -12,13 +12,11 @@ std::string RequestHandler::getMetricsResponse()
     std::string body =
         MetricsManager::getMetrics();
 
-    return
-        ResponseBuilder::buildHeader(
-            "200 OK",
-            "text/plain",
-            body.size()
-        )
-        + body;
+    return ResponseBuilder::buildHeader(
+               "200 OK",
+               "text/plain",
+               body.size()) +
+           body;
 }
 
 std::string RequestHandler::getForbiddenResponse()
@@ -29,49 +27,39 @@ std::string RequestHandler::getForbiddenResponse()
         "<h1>403 Forbidden</h1>"
         "</body></html>";
 
-    return
-        ResponseBuilder::buildHeader(
-            "403 Forbidden",
-            "text/html",
-            body.size()
-        )
-        + body;
+    return ResponseBuilder::buildHeader(
+               "403 Forbidden",
+               "text/html",
+               body.size()) +
+           body;
 }
 
 std::string RequestHandler::getNotFoundResponse(
-        const std::string& message
-)
+    const std::string &message)
 {
     std::string body =
 
-        "<html><body><h1>"
-        + message
-        + "</h1></body></html>";
+        "<html><body><h1>" + message + "</h1></body></html>";
 
-    return
-        ResponseBuilder::buildHeader(
-            "404 Not Found",
-            "text/html",
-            body.size()
-        )
-        + body;
+    return ResponseBuilder::buildHeader(
+               "404 Not Found",
+               "text/html",
+               body.size()) +
+           body;
 }
 
 std::string RequestHandler::handleRequest(
-        const std::string& request
-)
+    const HttpRequest &httpRequest)
 {
-    HttpRequest httpRequest =
-        HttpParser::parse(request);
 
-    if(httpRequest.method.empty())
+    if (httpRequest.method.empty())
     {
         return "";
     }
 
     MetricsManager::incrementTotalRequests();
 
-    if(httpRequest.path == "/metrics")
+    if (httpRequest.path == "/metrics")
     {
         return getMetricsResponse();
     }
@@ -84,21 +72,31 @@ std::string RequestHandler::handleRequest(
 }
 
 std::string RequestHandler::resolveFilePath(
-        const std::string& requestPath
-)
+    const std::string &requestPath)
 {
     return Router::resolvePath(
-        requestPath
-    );
+        requestPath);
 }
 
 bool RequestHandler::isFileMissing(
-        const std::string& body,
-        const std::vector<char>& binaryBody
-)
+    const std::string &body,
+    const std::vector<char> &binaryBody)
 {
-    return
-        body.empty()
-        &&
-        binaryBody.empty();
+    return body.empty() &&
+           binaryBody.empty();
+}
+
+std::string RequestHandler::getMethodNotAllowedResponse()
+{
+    std::string body =
+
+        "<html><body>"
+        "<h1>405 Method Not Allowed</h1>"
+        "</body></html>";
+
+    return ResponseBuilder::buildHeader(
+               "405 Method Not Allowed",
+               "text/html",
+               body.size()) +
+           body;
 }

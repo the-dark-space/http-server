@@ -6,14 +6,15 @@
 #include "thread_pool.h"
 
 Server::Server(
-        int port,
+    int port,
 
-        int threadCount
-)
+    int threadCount)
 
-        : port(port),
-        threadCount(threadCount),
-        running(true) {}
+    : port(port),
+      threadCount(threadCount),
+      running(true)
+{
+}
 
 void Server::start()
 {
@@ -89,12 +90,12 @@ void Server::start()
         }
 
         pool.enqueue(clientSocket);
-
     }
 
     close(serverSocket);
 }
-void Server::stop() {
+void Server::stop()
+{
 
     running = false;
 

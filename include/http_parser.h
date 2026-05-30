@@ -2,7 +2,8 @@
 
 #include <string>
 
-struct HttpRequest {
+struct HttpRequest
+{
 
     std::string method;
 
@@ -11,11 +12,10 @@ struct HttpRequest {
     std::string version;
 };
 
-class HttpParser {
+class HttpParser
+{
 
 public:
-
     static HttpRequest parse(
-            const std::string& request
-    );
+        const std::string &request);
 };

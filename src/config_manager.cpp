@@ -1,16 +1,14 @@
 #include "config_manager.h"
-
 #include <fstream>
-
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
-json loadConfig() {
+json loadConfig()
+{
 
     std::ifstream file(
-            "../config/config.json"
-    );
+        "../config/config.json");
 
     json config;
 
@@ -19,18 +17,20 @@ json loadConfig() {
     return config;
 }
 
-int ConfigManager::getPort() {
+int ConfigManager::getPort()
+{
 
     json config =
-            loadConfig();
+        loadConfig();
 
     return config["port"];
 }
 
-int ConfigManager::getThreadCount() {
+int ConfigManager::getThreadCount()
+{
 
     json config =
-            loadConfig();
+        loadConfig();
 
     return config["threads"];
 }

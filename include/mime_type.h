@@ -2,14 +2,12 @@
 
 #include <string>
 
-class MimeType {
+class MimeType
+{
 
 public:
-
-    static std::string getMimeType(
-            const std::string& filePath
-    );
-    static bool isBinaryFile(
-        const std::string& filePath
-);
+        static std::string getMimeType(
+            const std::string &filePath);
+        static bool isBinaryFile(
+            const std::string &filePath);
 };

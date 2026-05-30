@@ -11,22 +11,18 @@
 #include <condition_variable>
 #include <string>
 
-class ThreadPool {
+class ThreadPool
+{
 
 public:
-
     ThreadPool(int threadCount);
 
     ~ThreadPool();
 
     void enqueue(
-            int clientSocket
-    );
-
-    int dequeue();
+        int clientSocket);
 
 private:
-
     std::vector<std::thread> workers;
 
     std::queue<int> tasks;
@@ -38,6 +34,5 @@ private:
     bool stop;
 
     void processRequest(
-        int clientSocket
-);
+        int clientSocket);
 };

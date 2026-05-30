@@ -2,15 +2,14 @@
 #include <iostream>
 #include <unistd.h>
 #include "http_parser.h"
-#include "file_handler.h"
 #include <sys/socket.h>
 #include "logger.h"
-#include "mime_type.h"
-#include "metrics_manager.h"
 #include <sys/time.h>
 #include <cerrno>
 #include "response_builder.h"
 #include "request_handler.h"
+#include "http_response.h"
+#include "static_file_handler.h"
 
 ThreadPool::ThreadPool(
     int threadCount) : stop(false)
@@ -76,29 +75,6 @@ void ThreadPool::enqueue(
     condition.notify_one();
 }
 
-int ThreadPool::dequeue()
-{
-
-    std::unique_lock<
-        std::mutex>
-        lock(queueMutex);
-
-    condition.wait(
-        lock,
-
-        [this]()
-        {
-            return !tasks.empty();
-        });
-
-    int task =
-        tasks.front();
-
-    tasks.pop();
-
-    return task;
-}
-
 ThreadPool::~ThreadPool()
 {
 
@@ -147,26 +123,35 @@ void ThreadPool::processRequest(
             sizeof(buffer),
             0);
 
-    if (bytesReceived < 0)
-{
-    if(errno == EAGAIN
-       || errno == EWOULDBLOCK)
+    if (bytesReceived == 0)
     {
         Logger::log(
             "INFO",
-            "No data available yet");
+            "Client disconnected");
+
+        close(clientSocket);
+
+        return;
     }
-    else
+    if (bytesReceived < 0)
     {
-        Logger::log(
-            "WARN",
-            "recv failed");
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        {
+            Logger::log(
+                "INFO",
+                "No data available yet");
+        }
+        else
+        {
+            Logger::log(
+                "WARN",
+                "recv failed");
+        }
+
+        close(clientSocket);
+
+        return;
     }
-
-    close(clientSocket);
-
-    return;
-}
 
     std::string request(
         buffer,
@@ -176,184 +161,109 @@ void ThreadPool::processRequest(
         HttpParser::parse(request);
 
     std::string handledResponse =
-    RequestHandler::handleRequest(
-        request
-    );
+        RequestHandler::handleRequest(
+            httpRequest);
 
-if(!handledResponse.empty())
-{
-    send(
-        clientSocket,
-        handledResponse.c_str(),
-        handledResponse.size(),
-        0);
-
-    close(clientSocket);
-
-    return;
-}
-
-    if (httpRequest.method != "GET")
+    if (!handledResponse.empty())
     {
-        Logger::log(
-            "WARN",
-            "Unsupported HTTP method");
+        ssize_t bytesSent = send(
+            clientSocket,
+            handledResponse.c_str(),
+            handledResponse.size(),
+            0);
 
+        if (bytesSent < 0)
+        {
+            Logger::log(
+                "WARN",
+                "Failed to send response");
+        }
         close(clientSocket);
 
         return;
     }
 
-    std::string filePath =
-    RequestHandler::resolveFilePath(
-        httpRequest.path
-    );
-
-    std::string body;
-    std::vector<char> binaryBody;
-    std::string status;
-
-    std::string contentType =
-        "text/html";
-
-    if (!filePath.empty())
+    if (httpRequest.method != "GET")
     {
-
-        if (
-            MimeType::isBinaryFile(
-                filePath))
-        {
-
-            binaryBody =
-                FileHandler::readBinaryFile(
-                    filePath);
-        }
-        else
-        {
-
-            body =
-                FileHandler::readFile(
-                    filePath);
-        }
-        contentType = MimeType::getMimeType(filePath);
-
-        bool fileMissing =
-    RequestHandler::isFileMissing(
-        body,
-        binaryBody
-    );
-
-        if (fileMissing)
-        {
-            MetricsManager ::incrementNotFoundRequests();
-            std::string response =
-    RequestHandler::getNotFoundResponse(
-        "404 File Not Found"
-    );
-
-send(
-    clientSocket,
-    response.c_str(),
-    response.size(),
-    0);
-
-close(clientSocket);
-
-return;
-        }
-
-        else
-        {
-
-            status = "200 OK";
-            MetricsManager ::incrementSuccessfulRequests();
-        }
-    }
-
-    else
-    {
-
-        MetricsManager ::incrementNotFoundRequests();
+        Logger::log(
+            "WARN",
+            "Unsupported HTTP method: " + httpRequest.method);
 
         std::string response =
-    RequestHandler::getNotFoundResponse(
-        "404 Route Not Found"
-    );
+            RequestHandler::getMethodNotAllowedResponse();
 
-send(
-    clientSocket,
-    response.c_str(),
-    response.size(),
-    0);
+        ssize_t bytesSent = send(
+            clientSocket,
+            response.c_str(),
+            response.size(),
+            0);
 
-close(clientSocket);
+        if (bytesSent < 0)
+        {
+            Logger::log(
+                "WARN",
+                "Failed to send response");
+        }
+        close(clientSocket);
 
-return;
+        return;
     }
 
-    std::string response =
-
-        "HTTP/1.1 " + status + "\r\n"
-
-                               "Content-Type: " +
-        contentType + "\r\n"
-
-                      "Content-Length: "
-
-        + std::to_string(
- 
-              !binaryBody.empty()
-
-                  ?
-
-                  binaryBody.size()
-
-                  :
-
-                  body.size())
-
-        + "\r\n\r\n"
-
-        + body;
-
-    Logger::log(
-        "INFO",
-        httpRequest.method + " " + httpRequest.path + " " + status);
+    HttpResponse response =
+        StaticFileHandler::serveFile(
+            httpRequest.path);
 
     std::string header =
-    ResponseBuilder::buildHeader(
-        status,
-        contentType,
-        !binaryBody.empty()
-            ? binaryBody.size()
-            : body.size()
-    );
+        ResponseBuilder::buildHeader(
+            response.status,
+            response.contentType,
 
-    send(
+            response.isBinary
+                ? response.binaryBody.size()
+                : response.body.size());
+
+    ssize_t bytesSent = send(
         clientSocket,
         header.c_str(),
         header.size(),
         0);
-
-    if (binaryBody.empty())
+    if (bytesSent < 0)
     {
-
-        send(
-            clientSocket,
-            body.c_str(),
-            body.size(),
-            0);
+        Logger::log(
+            "WARN",
+            "Failed to send response");
     }
 
+    if (response.isBinary)
+    {
+        ssize_t bytesSent = send(
+            clientSocket,
+            response.binaryBody.data(),
+            response.binaryBody.size(),
+            0);
+        if (bytesSent < 0)
+        {
+            Logger::log(
+                "WARN",
+                "Failed to send response");
+        }
+    }
     else
     {
-
-        send(
+        ssize_t bytesSent = send(
             clientSocket,
-            binaryBody.data(),
-            binaryBody.size(),
+            response.body.c_str(),
+            response.body.size(),
             0);
+        if (bytesSent < 0)
+        {
+            Logger::log(
+                "WARN",
+                "Failed to send response");
+        }
     }
 
     close(clientSocket);
+
+    return;
 }

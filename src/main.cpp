@@ -7,25 +7,27 @@
 std::unique_ptr<Server> serverPtr;
 
 void signalHandler(
-        int signal
-) {
+    int signal)
+{
 
     std::cout
-            << "\nGracefully shutting down server...\n";
+        << "\nGracefully shutting down server...\n";
 
-    if(serverPtr) {
+    if (serverPtr)
+    {
 
         serverPtr->stop();
     }
 }
 
-int main() {
+int main()
+{
 
     int port =
-            ConfigManager::getPort();
+        ConfigManager::getPort();
 
     int threads =
-            ConfigManager::getThreadCount();
+        ConfigManager::getThreadCount();
 
     signal(SIGINT, signalHandler);
 

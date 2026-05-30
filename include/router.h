@@ -5,8 +5,6 @@
 class Router
 {
 public:
-
     static std::string resolvePath(
-            const std::string& requestPath
-    );
+        const std::string &requestPath);
 };

@@ -4,17 +4,15 @@
 
 #include <mutex>
 
-class Logger {
+class Logger
+{
 
 public:
-
     static void log(
-            const std::string& level,
+        const std::string &level,
 
-            const std::string& message
-    );
+        const std::string &message);
 
 private:
-
     static std::mutex logMutex;
 };

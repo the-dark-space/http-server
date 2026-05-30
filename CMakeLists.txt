@@ -21,4 +21,5 @@ add_executable(server
     src/response_builder.cpp
     src/router.cpp
     src/request_handler.cpp
+    src/static_file_handler.cpp
 )

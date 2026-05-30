@@ -1,9 +1,9 @@
 #pragma once
 
-class ConfigManager {
+class ConfigManager
+{
 
 public:
-
     static int getPort();
 
     static int getThreadCount();

@@ -2,11 +2,10 @@
 
 #include <string>
 
-class PathValidator {
+class PathValidator
+{
 
 public:
-
     static bool isSafePath(
-            const std::string& path
-    );
+        const std::string &path);
 };

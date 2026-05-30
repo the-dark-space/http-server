@@ -1,20 +1,18 @@
 #pragma once
 #include <atomic>
-class Server {
+class Server
+{
 
 public:
-
     Server(
         int port,
 
-        int threadCount
-);
+        int threadCount);
 
     void start();
     void stop();
 
 private:
-
     int port;
     int threadCount;
     int serverSocket;
