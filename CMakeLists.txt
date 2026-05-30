@@ -18,4 +18,7 @@ add_executable(server
     src/mime_type.cpp
     src/path_validator.cpp
     src/metrics_manager.cpp
+    src/response_builder.cpp
+    src/router.cpp
+    src/request_handler.cpp
 )
