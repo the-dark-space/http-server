@@ -5,56 +5,66 @@
 #include "router.h"
 #include "file_handler.h"
 #include "mime_type.h"
-#include "response_builder.h"
 
-std::string RequestHandler::getMetricsResponse()
+HttpResponse RequestHandler::getMetricsResponse()
 {
-    std::string body =
+    HttpResponse response;
+
+    response.status =
+        "200 OK";
+
+    response.contentType =
+        "text/plain";
+
+    response.body =
         MetricsManager::getMetrics();
 
-    return ResponseBuilder::buildHeader(
-               "200 OK",
-               "text/plain",
-               body.size()) +
-           body;
+    return response;
 }
 
-std::string RequestHandler::getForbiddenResponse()
+HttpResponse RequestHandler::getForbiddenResponse()
 {
-    std::string body =
+    HttpResponse response;
 
+    response.status =
+        "403 Forbidden";
+
+    response.contentType =
+        "text/html";
+
+    response.body =
         "<html><body>"
         "<h1>403 Forbidden</h1>"
         "</body></html>";
 
-    return ResponseBuilder::buildHeader(
-               "403 Forbidden",
-               "text/html",
-               body.size()) +
-           body;
+    return response;
 }
 
-std::string RequestHandler::getNotFoundResponse(
+HttpResponse RequestHandler::getNotFoundResponse(
     const std::string &message)
 {
-    std::string body =
+    HttpResponse response;
 
-        "<html><body><h1>" + message + "</h1></body></html>";
+    response.status =
+        "404 Not Found";
 
-    return ResponseBuilder::buildHeader(
-               "404 Not Found",
-               "text/html",
-               body.size()) +
-           body;
+    response.contentType =
+        "text/html";
+
+    response.body =
+        "<html><body><h1>" + message +
+        "</h1></body></html>";
+
+    return response;
 }
 
-std::string RequestHandler::handleRequest(
+HttpResponse RequestHandler::handleRequest(
     const HttpRequest &httpRequest)
 {
 
     if (httpRequest.method.empty())
     {
-        return "";
+        return {};
     }
 
     MetricsManager::incrementTotalRequests();
@@ -68,7 +78,7 @@ std::string RequestHandler::handleRequest(
     {
         return getForbiddenResponse();
     }
-    return "";
+    return {};
 }
 
 std::string RequestHandler::resolveFilePath(
@@ -86,17 +96,20 @@ bool RequestHandler::isFileMissing(
            binaryBody.empty();
 }
 
-std::string RequestHandler::getMethodNotAllowedResponse()
+HttpResponse RequestHandler::getMethodNotAllowedResponse()
 {
-    std::string body =
+    HttpResponse response;
 
+    response.status =
+        "405 Method Not Allowed";
+
+    response.contentType =
+        "text/html";
+
+    response.body =
         "<html><body>"
         "<h1>405 Method Not Allowed</h1>"
         "</body></html>";
 
-    return ResponseBuilder::buildHeader(
-               "405 Method Not Allowed",
-               "text/html",
-               body.size()) +
-           body;
+    return response;
 }

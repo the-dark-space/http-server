@@ -2,23 +2,24 @@
 #include <vector>
 #include <string>
 #include "http_parser.h"
+#include "http_response.h"
 
 class RequestHandler
 {
 public:
-        static std::string handleRequest(
-            const HttpRequest &httpRequest);
+    static HttpResponse handleRequest(
+        const HttpRequest &request);
 
-        static std::string getMetricsResponse();
+    static HttpResponse getMetricsResponse();
 
-        static std::string getForbiddenResponse();
+    static HttpResponse getForbiddenResponse();
 
-        static std::string getNotFoundResponse(
-            const std::string &message);
-        static std::string resolveFilePath(
-            const std::string &requestPath);
-        static bool isFileMissing(
-            const std::string &body,
-            const std::vector<char> &binaryBody);
-        static std::string getMethodNotAllowedResponse();
+    static HttpResponse getNotFoundResponse(
+        const std::string &message);
+    static std::string resolveFilePath(
+        const std::string &requestPath);
+    static bool isFileMissing(
+        const std::string &body,
+        const std::vector<char> &binaryBody);
+    static HttpResponse getMethodNotAllowedResponse();
 };

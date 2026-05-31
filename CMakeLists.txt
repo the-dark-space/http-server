@@ -23,4 +23,6 @@ add_executable(server
     src/request_handler.cpp
     src/static_file_handler.cpp
     src/access_logger.cpp
+    src/socket_utils.cpp
+    src/connection_handler.cpp
 )
