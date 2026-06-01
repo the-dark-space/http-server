@@ -29,4 +29,6 @@ public:
         int clientSocket);
 
     void handle();
+
+    void closeConnection();
 };

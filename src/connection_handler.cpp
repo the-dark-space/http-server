@@ -35,9 +35,12 @@ void ConnectionHandler::
             !readRequest(
                 request))
         {
-            this->shouldCloseConnection = true;
+            MetricsManager::
+                decrementActiveWorkers();
 
-            goto cleanup;
+            closeConnection();
+
+            return;
         }
         HttpRequest httpRequest;
 
@@ -71,8 +74,12 @@ void ConnectionHandler::
             !sendResponse(
                 response))
         {
-            this->shouldCloseConnection = true;
-            goto cleanup;
+            MetricsManager::
+                decrementActiveWorkers();
+
+            closeConnection();
+
+            return;
         }
 
         if (!httpRequest.keepAlive)
@@ -81,26 +88,14 @@ void ConnectionHandler::
                 "INFO",
                 "Client requested connection close");
 
-            this->shouldCloseConnection = true;
+            MetricsManager::
+                decrementActiveWorkers();
 
-            goto cleanup;
+            closeConnection();
+
+            return;
         }
     }
-cleanup:
-
-    MetricsManager::
-        decrementActiveWorkers();
-
-    this->shouldCloseConnection = false;
-
-    MetricsManager::
-        decrementActiveConnections();
-
-    Logger::log(
-        "INFO",
-        "Closing socket");
-
-    close(clientSocket);
 }
 
 void ConnectionHandler::
@@ -268,4 +263,18 @@ HttpResponse ConnectionHandler::
     return StaticFileHandler::
         serveFile(
             httpRequest.path);
+}
+
+void ConnectionHandler::
+    closeConnection()
+{
+    MetricsManager::
+        decrementActiveConnections();
+
+    Logger::log(
+        "INFO",
+        "Closing socket");
+
+    close(
+        this->clientSocket);
 }
