@@ -5,6 +5,10 @@
 
 class ConnectionHandler
 {
+private:
+
+    int clientSocket;
+    bool shouldCloseConnection = false;
 public:
     static void configureSocket(
         int clientSocket);
@@ -23,4 +27,9 @@ public:
 
     static HttpResponse buildResponse(
         const HttpRequest &httpRequest);
+
+    explicit ConnectionHandler(
+        int clientSocket);
+
+    void handle();
 };

@@ -100,89 +100,9 @@ ThreadPool::~ThreadPool()
 void ThreadPool::processRequest(
     int clientSocket)
 {
-    MetricsManager::incrementActiveWorkers();
 
-    ConnectionHandler::
-        configureSocket(
-            clientSocket);
-    bool shouldCloseConnection = false;
+    ConnectionHandler handler(
+        clientSocket);
 
-    while (true)
-    {
-        std::string request;
-
-        if (
-            !ConnectionHandler::
-                readRequest(
-                    clientSocket,
-                    request))
-        {
-            shouldCloseConnection = true;
-
-            goto cleanup;
-        }
-        HttpRequest httpRequest;
-
-        if (
-            !ConnectionHandler::
-                parseRequest(
-                    request,
-                    httpRequest))
-        {
-            continue;
-        }
-        Logger::log(
-            "INFO",
-            httpRequest.method + " " + httpRequest.path + " " + httpRequest.version);
-
-        Logger::log(
-            "INFO",
-            httpRequest.keepAlive
-                ? "Keep-Alive requested"
-                : "No Keep-Alive");
-
-        HttpResponse response =
-            ConnectionHandler::
-                buildResponse(
-                    httpRequest);
-
-        AccessLogger::logRequest(
-            httpRequest.method,
-            httpRequest.path,
-            response.status);
-
-        if (
-            !ConnectionHandler::
-                sendResponse(
-                    clientSocket,
-                    response))
-        {
-            shouldCloseConnection = true;
-            goto cleanup;
-        }
-
-        if (!httpRequest.keepAlive)
-        {
-            Logger::log(
-                "INFO",
-                "Client requested connection close");
-
-            shouldCloseConnection = true;
-
-            goto cleanup;
-        }
-    }
-cleanup:
-
-    MetricsManager::
-        decrementActiveWorkers();
-
-    MetricsManager::
-        decrementActiveConnections();
-
-    Logger::log(
-        "INFO",
-        "Closing socket");
-
-    close(clientSocket);
+    handler.handle();
 }

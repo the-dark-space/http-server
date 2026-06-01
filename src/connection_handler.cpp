@@ -9,6 +9,106 @@
 #include "socket_utils.h"
 #include "request_handler.h"
 #include "static_file_handler.h"
+#include "metrics_manager.h"
+#include "access_logger.h"
+#include "request_handler.h"
+
+ConnectionHandler::
+    ConnectionHandler(
+        int clientSocket)
+    : clientSocket(clientSocket)
+{
+}
+
+void ConnectionHandler::
+    handle()
+{
+    MetricsManager::incrementActiveWorkers();
+    configureSocket(
+        clientSocket);
+    
+    while (true)
+    {
+        std::string request;
+
+        if (
+            !ConnectionHandler::
+                readRequest(
+                    clientSocket,
+                    request))
+        {
+            this->shouldCloseConnection = true;
+
+            goto cleanup;
+        }
+        HttpRequest httpRequest;
+
+        if (
+            !ConnectionHandler::
+                parseRequest(
+                    request,
+                    httpRequest))
+        {
+            continue;
+        }
+        Logger::log(
+            "INFO",
+            httpRequest.method + " " + httpRequest.path + " " + httpRequest.version);
+
+        Logger::log(
+            "INFO",
+            httpRequest.keepAlive
+                ? "Keep-Alive requested"
+                : "No Keep-Alive");
+
+        HttpResponse response =
+            ConnectionHandler::
+                buildResponse(
+                    httpRequest);
+
+        AccessLogger::logRequest(
+            httpRequest.method,
+            httpRequest.path,
+            response.status);
+
+        if (
+            !ConnectionHandler::
+                sendResponse(
+                    clientSocket,
+                    response))
+        {
+            this->shouldCloseConnection = true;
+            goto cleanup;
+        }
+
+        if (!httpRequest.keepAlive)
+        {
+            Logger::log(
+                "INFO",
+                "Client requested connection close");
+
+            this->shouldCloseConnection = true;
+
+            goto cleanup;
+        }
+    }
+cleanup:
+
+    MetricsManager::
+        decrementActiveWorkers();
+
+    this->shouldCloseConnection = false;
+
+    MetricsManager::
+        decrementActiveConnections();
+
+    Logger::log(
+        "INFO",
+        "Closing socket");
+
+    close(clientSocket);
+
+}
 
 void ConnectionHandler::
     configureSocket(
