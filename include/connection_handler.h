@@ -6,26 +6,23 @@
 class ConnectionHandler
 {
 private:
-
     int clientSocket;
     bool shouldCloseConnection = false;
-public:
-    static void configureSocket(
-        int clientSocket);
 
-    static bool readRequest(
-        int clientSocket,
+public:
+    void configureSocket();
+
+    bool readRequest(
         std::string &request);
 
-    static bool parseRequest(
+    bool parseRequest(
         const std::string &request,
         HttpRequest &httpRequest);
 
-    static bool sendResponse(
-        int clientSocket,
+    bool sendResponse(
         const HttpResponse &response);
 
-    static HttpResponse buildResponse(
+    HttpResponse buildResponse(
         const HttpRequest &httpRequest);
 
     explicit ConnectionHandler(

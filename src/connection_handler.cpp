@@ -24,18 +24,16 @@ void ConnectionHandler::
     handle()
 {
     MetricsManager::incrementActiveWorkers();
-    configureSocket(
-        clientSocket);
-    
+
+    configureSocket();
+
     while (true)
     {
         std::string request;
 
         if (
-            !ConnectionHandler::
-                readRequest(
-                    clientSocket,
-                    request))
+            !readRequest(
+                request))
         {
             this->shouldCloseConnection = true;
 
@@ -44,10 +42,9 @@ void ConnectionHandler::
         HttpRequest httpRequest;
 
         if (
-            !ConnectionHandler::
-                parseRequest(
-                    request,
-                    httpRequest))
+            !parseRequest(
+                request,
+                httpRequest))
         {
             continue;
         }
@@ -62,9 +59,8 @@ void ConnectionHandler::
                 : "No Keep-Alive");
 
         HttpResponse response =
-            ConnectionHandler::
-                buildResponse(
-                    httpRequest);
+            buildResponse(
+                httpRequest);
 
         AccessLogger::logRequest(
             httpRequest.method,
@@ -72,10 +68,8 @@ void ConnectionHandler::
             response.status);
 
         if (
-            !ConnectionHandler::
-                sendResponse(
-                    clientSocket,
-                    response))
+            !sendResponse(
+                response))
         {
             this->shouldCloseConnection = true;
             goto cleanup;
@@ -107,12 +101,10 @@ cleanup:
         "Closing socket");
 
     close(clientSocket);
-
 }
 
 void ConnectionHandler::
-    configureSocket(
-        int clientSocket)
+    configureSocket()
 {
     timeval timeout;
 
@@ -121,7 +113,7 @@ void ConnectionHandler::
     timeout.tv_usec = 0;
 
     setsockopt(
-        clientSocket,
+        this->clientSocket,
         SOL_SOCKET,
         SO_RCVTIMEO,
         &timeout,
@@ -130,14 +122,13 @@ void ConnectionHandler::
 
 bool ConnectionHandler::
     readRequest(
-        int clientSocket,
         std::string &request)
 {
     char buffer[4096] = {0};
 
     int bytesReceived =
         recv(
-            clientSocket,
+            this->clientSocket,
             buffer,
             sizeof(buffer),
             0);
@@ -195,7 +186,6 @@ bool ConnectionHandler::
 
 bool ConnectionHandler::
     sendResponse(
-        int clientSocket,
         const HttpResponse &response)
 {
     std::string header =
@@ -209,7 +199,7 @@ bool ConnectionHandler::
 
     if (
         !SocketUtils::sendAll(
-            clientSocket,
+            this->clientSocket,
             header.c_str(),
             header.size()))
     {
@@ -224,7 +214,7 @@ bool ConnectionHandler::
     {
         if (
             !SocketUtils::sendAll(
-                clientSocket,
+                this->clientSocket,
                 response.binaryBody.data(),
                 response.binaryBody.size()))
         {
@@ -239,7 +229,7 @@ bool ConnectionHandler::
     {
         if (
             !SocketUtils::sendAll(
-                clientSocket,
+                this->clientSocket,
                 response.body.c_str(),
                 response.body.size()))
         {
