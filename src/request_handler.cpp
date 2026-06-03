@@ -73,6 +73,41 @@ HttpResponse RequestHandler::handleRequest(
     {
         return getMetricsResponse();
     }
+
+    if (
+        httpRequest.path ==
+        "/echo")
+    {
+        HttpResponse response;
+
+        response.status =
+            "200 OK";
+
+        response.contentType =
+            "text/plain";
+
+        response.body =
+            httpRequest.body;
+
+        return response;
+    }
+
+    if (httpRequest.path == "/api/ping")
+    {
+        HttpResponse response;
+
+        response.status =
+            "200 OK";
+
+        response.contentType =
+            "application/json";
+
+        response.body =
+            R"({"status":"ok"})";
+
+        return response;
+    }
+
     if (!PathValidator::isSafePath(
             httpRequest.path))
     {

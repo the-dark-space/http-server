@@ -63,6 +63,27 @@ HttpRequest HttpParser::parse(
         httpRequest.headers[key] =
             value;
     }
+    auto it =
+        httpRequest.headers.find(
+            "Content-Length");
+
+    if (it !=
+        httpRequest.headers.end())
+    {
+        httpRequest.contentLength =
+            std::stoul(
+                it->second);
+    }
+    std::string body;
+
+    std::getline(
+        stream,
+        body,
+        '\0');
+
+    httpRequest.body =
+        body;
+
     if (httpRequest.version == "HTTP/1.1")
     {
         httpRequest.keepAlive = true;

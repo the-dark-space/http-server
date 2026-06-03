@@ -12,7 +12,6 @@
 #include "metrics_manager.h"
 #include "access_logger.h"
 #include "request_handler.h"
-
 ConnectionHandler::
     ConnectionHandler(
         int clientSocket)
@@ -51,6 +50,21 @@ void ConnectionHandler::
         {
             continue;
         }
+        for (const auto &[key, value] : httpRequest.headers)
+        {
+            Logger::log(
+                "INFO",
+                key + "=" + value);
+        }
+
+        if (!httpRequest.body.empty())
+        {
+            Logger::log(
+                "INFO",
+                "Body length = " + std::to_string(
+                                       httpRequest.body.size()));
+        }
+
         Logger::log(
             "INFO",
             httpRequest.method + " " + httpRequest.path + " " + httpRequest.version);
@@ -119,6 +133,12 @@ bool ConnectionHandler::
     readRequest(
         std::string &request)
 {
+    /*
+     * TODO:
+     * Read until full request is received
+     * using Content-Length.
+     */
+
     char buffer[4096] = {0};
 
     int bytesReceived =

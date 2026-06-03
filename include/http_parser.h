@@ -17,6 +17,8 @@ struct HttpRequest
         std::string,
         std::string>
         headers;
+    std::string body;
+    size_t contentLength = 0;
 };
 
 class HttpParser
