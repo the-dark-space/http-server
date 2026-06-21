@@ -62,6 +62,15 @@ HttpResponse RequestHandler::handleRequest(
     const HttpRequest &httpRequest)
 {
 
+    HttpResponse routeResponse =
+        Router::handleRoute(
+            httpRequest);
+
+    if (!routeResponse.status.empty())
+    {
+        return routeResponse;
+    }
+
     if (httpRequest.method.empty())
     {
         return {};

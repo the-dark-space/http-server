@@ -3,6 +3,7 @@
 #include <csignal>
 #include <memory>
 #include <iostream>
+#include "router.h"
 
 std::unique_ptr<Server> serverPtr;
 
@@ -34,6 +35,26 @@ int main()
     serverPtr = std::make_unique<Server>(
         port,
         threads);
+
+    Router::registerRoute(
+        "GET",
+        "/api/ping",
+
+        [](const HttpRequest &)
+        {
+            HttpResponse response;
+
+            response.status =
+                "200 OK";
+
+            response.contentType =
+                "application/json";
+
+            response.body =
+                R"({"status":"ok"})";
+
+            return response;
+        });
 
     serverPtr->start();
 
